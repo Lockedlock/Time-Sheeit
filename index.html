@@ -19,6 +19,36 @@
             display: flex;
             gap: 0.5rem;
         }
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            right: 0;
+            background-color: #f9f9f9;
+            min-width: 100px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+            z-index: 1;
+            border-radius: 4px;
+        }
+        .dropdown-content button {
+            color: black;
+            padding: 4px 8px;
+            text-decoration: none;
+            display: block;
+            width: 100%;
+            text-align: left;
+            border: none;
+            background: none;
+        }
+        .dropdown-content button:hover {
+            background-color: #ddd;
+        }
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
     </style>
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen">
@@ -74,6 +104,7 @@
             </div>
         </div>
         <button onclick="exportPDF()" class="bg-blue-500 text-white p-2 rounded-lg w-full hover:bg-blue-600">Export</button>
+        <button onclick="newWeek()" class="bg-yellow-500 text-white p-2 rounded-lg w-full mt-2 hover:bg-yellow-600">New Week</button>
     </div>
 
     <script>
@@ -114,7 +145,7 @@
             if (!clockInTime) return;
             const clockOutTime = new Date();
             const hours = (clockOutTime - clockInTime.time) / (1000 * 60 * 60);
-            const date = clockInTime.time.toLocaleDateString();
+            const date = clockOutTime.toLocaleDateString('en-US', { day: '2-digit', month: '2-digit' }).split('/').reverse().join('/');
             const job = clockInTime.job;
             timesheet.push({ date, hours: hours.toFixed(2), job });
             localStorage.setItem('timesheet', JSON.stringify(timesheet));
@@ -136,7 +167,7 @@
                 alert('Please enter a valid date, hours, and job name!');
                 return;
             }
-            const date = new Date(manualDate).toLocaleDateString();
+            const date = new Date(manualDate).toLocaleDateString('en-US', { day: '2-digit', month: '2-digit' }).split('/').reverse().join('/');
             timesheet.push({ date, hours: parseFloat(manualHours).toFixed(2), job: manualJob });
             localStorage.setItem('timesheet', JSON.stringify(timesheet));
             updateTimesheet();
@@ -153,12 +184,22 @@
                 li.className = 'p-2 bg-gray-50 rounded-lg flex justify-between items-center';
                 const entryText = document.createElement('span');
                 entryText.textContent = `${entry.date}: ${entry.hours} hours (${entry.job})`;
+                const dropdown = document.createElement('div');
+                dropdown.className = 'dropdown';
                 const editBtn = document.createElement('button');
                 editBtn.textContent = 'Edit';
-                editBtn.className = 'text-blue-500 hover:text-blue-700 ml-2';
-                editBtn.onclick = () => editEntry(index);
+                editBtn.className = 'text-blue-500 hover:text-blue-700';
+                const dropdownContent = document.createElement('div');
+                dropdownContent.className = 'dropdown-content';
+                dropdownContent.innerHTML = `
+                    <button onclick="editEntry(${index}); hideDropdown(this.parentElement)">Edit</button>
+                    <button onclick="deleteEntry(${index}); hideDropdown(this.parentElement)">Delete</button>
+                    <button onclick="hideDropdown(this.parentElement)">Cancel</button>
+                `;
+                dropdown.appendChild(editBtn);
+                dropdown.appendChild(dropdownContent);
                 li.appendChild(entryText);
-                li.appendChild(editBtn);
+                li.appendChild(dropdown);
                 timesheetList.appendChild(li);
             });
         }
@@ -169,18 +210,18 @@
             const editForm = document.createElement('div');
             editForm.className = 'edit-form active';
             editForm.innerHTML = `
-                <input type="date" value="${new Date(entry.date).toISOString().split('T')[0]}" class="p-1 border rounded">
+                <input type="date" value="${new Date(entry.date.split('/').reverse().join('-')).toISOString().split('T')[0]}" class="p-1 border rounded">
                 <input type="number" step="0.01" min="0" value="${entry.hours}" class="p-1 border rounded w-20">
                 <input type="text" value="${entry.job}" class="p-1 border rounded w-1/3">
                 <button onclick="saveEdit(${index}, this.parentElement)" class="bg-green-500 text-white p-1 rounded hover:bg-green-600">Save</button>
                 <button onclick="cancelEdit(this.parentElement)" class="bg-red-500 text-white p-1 rounded hover:bg-red-600">Cancel</button>
             `;
             li.appendChild(editForm);
-            li.querySelector('button').style.display = 'none'; // Hide Edit button while editing
+            li.querySelector('.dropdown').style.display = 'none'; // Hide dropdown while editing
         }
 
         function saveEdit(index, form) {
-            const date = new Date(form.querySelector('input[type="date"]').value).toLocaleDateString();
+            const date = new Date(form.querySelector('input[type="date"]').value).toLocaleDateString('en-US', { day: '2-digit', month: '2-digit' }).split('/').reverse().join('/');
             const hours = parseFloat(form.querySelector('input[type="number"]').value).toFixed(2);
             const job = form.querySelector('input[type="text"]').value.trim();
             if (!date || !hours || hours <= 0 || !job) {
@@ -195,6 +236,27 @@
         function cancelEdit(form) {
             form.remove();
             updateTimesheet(); // Refresh to show original entry
+        }
+
+        function deleteEntry(index) {
+            if (confirm('Are you sure you want to delete this entry?')) {
+                timesheet.splice(index, 1);
+                localStorage.setItem('timesheet', JSON.stringify(timesheet));
+                updateTimesheet();
+            }
+        }
+
+        function hideDropdown(dropdown) {
+            dropdown.style.display = 'none';
+            updateTimesheet(); // Refresh to ensure UI consistency
+        }
+
+        function newWeek() {
+            if (confirm('Are you sure you want to clear all data and start a new week?')) {
+                timesheet = [];
+                localStorage.setItem('timesheet', JSON.stringify(timesheet));
+                updateTimesheet();
+            }
         }
 
         function exportPDF() {
