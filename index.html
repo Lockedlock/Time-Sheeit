@@ -217,31 +217,3 @@
     </script>
 </body>
 </html>
-
-### Changes Made
-- **Removed 7-Week Parameter**:
-  - Removed the `sevenWeeksMs` constant and the filtering logic in `exportPDF()` that limited the export to a 7-week period.
-  - Now, `exportPDF()` uses the entire `timesheet` array, exporting all entries regardless of date.
-- **Kept Other Functionality**:
-  - The edit feature and other parts (clock-in/out, manual entry, visual timer) remain unchanged.
-
-### How to Update on GitHub
-1. **Replace the File**:
-   - Copy the updated `index.html` code above.
-   - Go to your GitHub repository (e.g., `https://github.com/yourusername/top-shelf-time-sheeeits`).
-   - Click on `index.html`, then click the pencil icon (✏️) to edit.
-   - Paste the new code, scroll down, and click **Commit changes**.
-
-2. **Verify the Update**:
-   - Wait a minute for GitHub Pages to update (refresh your browser if needed).
-   - Visit your app URL (e.g., `https://yourusername.github.io/top-shelf-time-sheeeits/`) to confirm the changes.
-   - Test the "Export" button with a few entries to ensure all data is included in the PDF.
-
-### How Employees Use the New Export
-- Click the "Export" button to download a `timesheet.pdf` containing all logged timesheet entries (date, hours, job) and the total hours, with no date restrictions.
-
-### Notes
-- The PDF remains a simple text-based format with tabs (`\t`) for separation. If you want a more structured layout (e.g., a table), let me know, and we can adjust it.
-- All data is still stored locally per device via `localStorage`.
-
-Let me know if you need further tweaks or run into any issues! It’s 07:42 PM NZST on June 27, 2025, so you’re almost there!
