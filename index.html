@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Top Shelf Time Sheeeits</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .container {
+            width: 100%;
+            max-width: 28rem; /* Maintains the adjusted width to fit all elements */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div class="bg-white p-6 rounded-lg shadow-lg w-full container">
+        <h1 class="text-2xl font-bold text-center mb-4">Top Shelf Time Sheeeits</h1>
+        <div class="text-center mb-4">
+            <p id="currentStatus" class="text-lg font-semibold">Not Clocked In</p>
+            <p id="currentTime" class="text-sm text-gray-600"></p>
+            <p id="visualTimer" class="text-xl font-mono text-blue-600 hidden">00:00:00</p>
+        </div>
+        <div class="flex justify-center space-x-4 mb-4">
+            <input 
+                id="jobInput" 
+                type="text" 
+                placeholder="Enter job name" 
+                class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-1/2"
+            >
+            <button id="clockInBtn" onclick="clockIn()" class="bg-green-500 text-white p-2 rounded-lg hover:bg-green-600">Clock In</button>
+            <button id="clockOutBtn" onclick="clockOut()" class="bg-red-500 text-white p-2 rounded-lg hover:bg-red-600 hidden">Clock Out</button>
+        </div>
+        <div class="mb-4">
+            <h2 class="text-lg font-semibold">Timesheet</h2>
+            <ul id="timesheetList" class="space-y-2 max-h-64 overflow-y-auto"></ul>
+        </div>
+        <div class="mb-4">
+            <h2 class="text-lg font-semibold">Add Manual Entry</h2>
+            <div class="flex space-x-2 items-center">
+                <input 
+                    id="manualDate" 
+                    type="date" 
+                    class="flex-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                <input 
+                    id="manualHours" 
+                    type="number" 
+                    step="0.01" 
+                    min="0" 
+                    placeholder="Hours" 
+                    class="w-24 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                <input 
+                    id="manualJobInput" 
+                    type="text" 
+                    placeholder="Enter job name" 
+                    class="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-1/3"
+                >
+                <button 
+                    onclick="addManualEntry()" 
+                    class="bg-blue-500 text-white p-2 rounded-lg hover:bg-blue-600"
+                >
+                    Add
+                </button>
+            </div>
+        </div>
+        <button onclick="exportPDF()" class="bg-blue-500 text-white p-2 rounded-lg w-full hover:bg-blue-600">Export Timesheet as PDF</button>
+    </div>
+
+    <script>
+        let clockInTime = null;
+        let timesheet = JSON.parse(localStorage.getItem('timesheet')) || [];
+        const sevenWeeksMs = 7 * 7 * 24 * 60 * 60 * 1000; // 7 weeks in milliseconds
+        let timerInterval = null;
+
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = now.toLocaleString();
+        }
+
+        function updateVisualTimer() {
+            if (!clockInTime) return;
+            const elapsedMs = new Date() - clockInTime.time;
+            const hours = Math.floor(elapsedMs / (1000 * 60 * 60)).toString().padStart(2, '0');
+            const minutes = Math.floor((elapsedMs % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
+            const seconds = Math.floor((elapsedMs % (1000 * 60)) / 1000).toString().padStart(2, '0');
+            document.getElementById('visualTimer').textContent = `${hours}:${minutes}:${seconds}`;
+        }
+
+        function clockIn() {
+            const job = document.getElementById('jobInput').value.trim();
+            if (!job) {
+                alert('Please enter a job name!');
+                return;
+            }
+            clockInTime = { time: new Date(), job };
+            document.getElementById('currentStatus').textContent = `Clocked In (${job})`;
+            document.getElementById('clockInBtn').classList.add('hidden');
+            document.getElementById('clockOutBtn').classList.remove('hidden');
+            document.getElementById('visualTimer').classList.remove('hidden');
+            document.getElementById('visualTimer').textContent = '00:00:00';
+            timerInterval = setInterval(updateVisualTimer, 1000);
+        }
+
+        function clockOut() {
+            if (!clockInTime) return;
+            const clockOutTime = new Date();
+            const hours = (clockOutTime - clockInTime.time) / (1000 * 60 * 60);
+            const date = clockInTime.time.toLocaleDateString();
+            const job = clockInTime.job;
+            timesheet.push({ date, hours: hours.toFixed(2), job });
+            localStorage.setItem('timesheet', JSON.stringify(timesheet));
+            updateTimesheet();
+            clockInTime = null;
+            clearInterval(timerInterval);
+            document.getElementById('currentStatus').textContent = 'Not Clocked In';
+            document.getElementById('clockInBtn').classList.remove('hidden');
+            document.getElementById('clockOutBtn').classList.add('hidden');
+            document.getElementById('jobInput').value = '';
+            document.getElementById('visualTimer').classList.add('hidden');
+        }
+
+        function addManualEntry() {
+            const manualDate = document.getElementById('manualDate').value;
+            const manualHours = document.getElementById('manualHours').value;
+            const manualJob = document.getElementById('manualJobInput').value.trim();
+            if (!manualDate || !manualHours || manualHours <= 0 || !manualJob) {
+                alert('Please enter a valid date, hours, and job name!');
+                return;
+            }
+            const date = new Date(manualDate).toLocaleDateString();
+            timesheet.push({ date, hours: parseFloat(manualHours).toFixed(2), job: manualJob });
+            localStorage.setItem('timesheet', JSON.stringify(timesheet));
+            updateTimesheet();
+            document.getElementById('manualDate').value = '';
+            document.getElementById('manualHours').value = '';
+            document.getElementById('manualJobInput').value = '';
+        }
+
+        function updateTimesheet() {
+            const timesheetList = document.getElementById('timesheetList');
+            timesheetList.innerHTML = '';
+            timesheet.forEach(entry => {
+                const li = document.createElement('li');
+                li.className = 'p-2 bg-gray-50 rounded-lg';
+                li.textContent = `${entry.date}: ${entry.hours} hours (${entry.job})`;
+                timesheetList.appendChild(li);
+            });
+        }
+
+        function exportPDF() {
+            if (timesheet.length === 0) {
+                alert('No timesheet data to export!');
+                return;
+            }
+
+            const startDate = new Date(Math.min(...timesheet.map(entry => new Date(entry.date))));
+            const endDate = new Date(startDate.getTime() + sevenWeeksMs);
+            const filteredTimesheet = timesheet.filter(entry => {
+                const entryDate = new Date(entry.date);
+                return entryDate >= startDate && entryDate <= endDate;
+            });
+
+            if (filteredTimesheet.length === 0) {
+                alert('No timesheet data within the 7-week period!');
+                return;
+            }
+
+            const totalHours = filteredTimesheet.reduce((sum, entry) => sum + parseFloat(entry.hours), 0).toFixed(2);
+
+            // Generate LaTeX code for PDF
+            const latexContent = `\\documentclass[a4paper]{article}
+\\usepackage{geometry}
+\\geometry{margin=1in}
+\\usepackage{noto}
+\\begin{document}
+\\begin{center}
+{\\Large \\textbf{Timesheet Report}}\\\\
+\\vspace{0.5cm}
+{${startDate.toLocaleDateString()} -- ${endDate.toLocaleDateString()}}
+\\end{center}
+\\vspace{1cm}
+\\begin{tabular}{|l|r|l|}
+\\hline
+\\textbf{Date} & \\textbf{Hours} & \\textbf{Job}\\\\
+\\hline
+${filteredTimesheet.map(entry => `${entry.date} & ${entry.hours} & ${entry.job.replace(/&/g, '\\&')} \\\\`).join('\n')}
+\\hline
+\\textbf{Total} & ${totalHours} & \\\\
+\\hline
+\\end{tabular}
+\\end{document}`;
+
+            // Create a downloadable LaTeX file
+            const blob = new Blob([latexContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'timesheet.tex';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Update time every second
+        setInterval(updateTime, 1000);
+        updateTime();
+        updateTimesheet();
+    </script>
+</body>
+</html>
